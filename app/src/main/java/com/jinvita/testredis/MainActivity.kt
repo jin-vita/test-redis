@@ -46,7 +46,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         initView()
         initReceiver()
-        checkConnection()
     }
 
     private fun initView() = with(binding) {
@@ -101,11 +100,16 @@ class MainActivity : AppCompatActivity() {
         printLog("$command : $channel - $data")
         data?.apply {
             when {
-                startsWith("successfully connected") ->
+                startsWith("successfully connected") -> {
                     binding.idTextView.text = "${AppData.ID} connected ! !"
+                    checkConnection()
+                }
 
                 startsWith("already connected") ->
                     binding.idTextView.text = "${AppData.ID} connected !!!"
+
+                equals("fail to connect") ->
+                    binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
             }
         }
     }

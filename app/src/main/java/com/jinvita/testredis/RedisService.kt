@@ -146,7 +146,11 @@ class RedisService : Service() {
                 val connection = try {
                     it.first.connectPubSub().sync()
                 } catch (e: RedisConnectionException) {
-                    e.printStackTrace()
+                    if (::timer.isInitialized) timer.cancel()
+                    clients.forEach { it.first.shutdown() }
+                    clients.clear()
+                    isConnecting.set(false)
+                    sendToActivity("unknown", "fail to connect")
                     return@thread
                 }
                 connection.statefulConnection.addListener(object :
@@ -183,8 +187,12 @@ class RedisService : Service() {
     private fun sendData(channel: String, data: String) {
         thread {
             clients.forEach {
-                if (publishConnection == null) publishConnection = it.first.connect().sync()
-                publishConnection?.publish(channel, data)
+                try {
+                    if (publishConnection == null) publishConnection = it.first.connect().sync()
+                    publishConnection?.publish(channel, data)
+                } catch (e: RedisConnectionException) {
+                    e.printStackTrace()
+                }
             }
         }
     }

@@ -147,7 +147,7 @@ class RedisService : Service() {
                     it.first.connectPubSub().sync()
                 } catch (e: RedisConnectionException) {
                     if (::timer.isInitialized) timer.cancel()
-                    clients.forEach { it.first.shutdown() }
+                    clients.forEach { client -> client.first.shutdown() }
                     clients.clear()
                     isConnecting.set(false)
                     sendToActivity("unknown", "fail to connect")

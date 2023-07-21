@@ -104,19 +104,13 @@ class MainActivity : AppCompatActivity() {
         val data = intent.getStringExtra(Extras.DATA)
         AppData.debug(TAG, "$command : $channel - $data")
         printLog("$command : $channel - $data")
+        if (channel == AppData.ID) binding.idTextView.text = "${AppData.ID} connected ! !"
         data?.apply {
             AppData.showToast(this@MainActivity, this)
             when {
-                startsWith("check redis connection") ->
-                    binding.idTextView.text = "${AppData.ID} 정상 작동 중 !"
-
-                startsWith("successfully connected") -> {
-                    binding.idTextView.text = "${AppData.ID} connected ! !"
-                    checkConnection()
-                }
-
-                startsWith("already connected") ->
-                    binding.idTextView.text = "${AppData.ID} connected !!!"
+                startsWith("already connected") -> return
+                startsWith("check redis connection") -> return
+                startsWith("successfully connected") -> checkConnection()
 
                 equals("fail to connect") ->
                     binding.idTextView.text = "IP 와 PORT 를 확인해주세요"

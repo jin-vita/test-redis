@@ -144,7 +144,7 @@ class RedisService : Service() {
                         e.printStackTrace()
                     } catch (e: RedisCommandTimeoutException) {
                         // 연결했었지만 네트워크가 끊겨서 다시 연결 실패 상황
-                        sendToActivity("unknown", "fail to reconnect")
+                        sendToActivity(Extras.UNKNOWN, "fail to reconnect")
                         e.printStackTrace()
                     }
                 }
@@ -164,7 +164,7 @@ class RedisService : Service() {
                     clients.forEach { client -> client.first.shutdown() }
                     clients.clear()
                     isConnecting.set(false)
-                    sendToActivity("unknown", "fail to connect")
+                    sendToActivity(Extras.UNKNOWN, "fail to connect")
                     return@thread
                 }
                 connection.statefulConnection.addListener(object :

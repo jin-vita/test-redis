@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import io.lettuce.core.RedisClient
+import io.lettuce.core.RedisCommandTimeoutException
 import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.sync.RedisCommands
@@ -68,8 +69,11 @@ class RedisService : Service() {
     private fun handleCommand(intent: Intent) {
         intent.getStringExtra(Extras.COMMAND)?.apply {
             when (this) {
-                // 연결 혹은 끊기를 while 처럼 빠르게 반복하면 redisConnectionException 이 생겨서 handler 처리
-                Extras.CONNECT -> connectionHandler.postDelayed(::connectRedis, 500)
+                // 연결 혹은 끊기를 while 처럼 빠르게 반복하면 redisConnectionException 이 생겨서 0.5초 딜레이
+                Extras.CONNECT -> {
+                    connectionHandler.removeMessages(0)
+                    connectionHandler.postDelayed(::connectRedis, 500)
+                }
 
                 Extras.DISCONNECT -> {
                     connectionHandler.removeMessages(0)
@@ -99,7 +103,7 @@ class RedisService : Service() {
                     return@thread
                 }
             }
-            // 연결한 적이 있다면 리턴, 없다면 true 로 변환하고 넘어간다.
+            // 이미 연결되어있다면 리턴, 없다면 true 로 변환하고 넘어간다.
             if (isConnecting.getAndSet(true)) {
                 sendData(AppData.ID, "already connected. ${AppData.ID} - ${AppData.redisHost}:${AppData.redisPort}")
                 return@thread
@@ -128,12 +132,21 @@ class RedisService : Service() {
     // CHECK_INTERVAL 마다 나 자신에게 메시지를 보낸다.
     private fun checkConnection() {
         thread {
+            if (::timer.isInitialized) timer.cancel()
             timer = timer(period = Extras.CHECK_INTERVAL) {
                 clients.forEach {
-                    if (publishConnection == null) publishConnection = it.first.connect().sync()
-                    @SuppressLint("SimpleDateFormat")
-                    val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
-                    publishConnection?.publish(AppData.ID, "check redis connection $now")
+                    try {
+                        if (publishConnection == null) publishConnection = it.first.connect().sync()
+                        @SuppressLint("SimpleDateFormat")
+                        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
+                        publishConnection?.publish(AppData.ID, "check redis connection $now")
+                    } catch (e: RedisConnectionException) {
+                        e.printStackTrace()
+                    } catch (e: RedisCommandTimeoutException) {
+                        // 연결했었지만 네트워크가 끊겨서 다시 연결 실패 상황
+                        sendToActivity("unknown", "fail to reconnect")
+                        e.printStackTrace()
+                    }
                 }
             }
         }
@@ -146,6 +159,7 @@ class RedisService : Service() {
                 val connection = try {
                     it.first.connectPubSub().sync()
                 } catch (e: RedisConnectionException) {
+                    // 네트워크에 해당 레디스서버 IP 와 PORT 가 없어서 연결실패 상황
                     if (::timer.isInitialized) timer.cancel()
                     clients.forEach { client -> client.first.shutdown() }
                     clients.clear()
@@ -191,6 +205,8 @@ class RedisService : Service() {
                     if (publishConnection == null) publishConnection = it.first.connect().sync()
                     publishConnection?.publish(channel, data)
                 } catch (e: RedisConnectionException) {
+                    e.printStackTrace()
+                } catch (e: RedisCommandTimeoutException) {
                     e.printStackTrace()
                 }
             }

@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     private fun initView() = with(binding) {
         // view 에 값 세팅
         idEditText.setText("test01")
-        ipEditText.setText("192.168.43.234")
+        ipEditText.setText("192.168.1.1")
         portEditText.setText("6379")
 
         // 로그 뷰에 스크롤 생성
@@ -62,23 +62,29 @@ class MainActivity : AppCompatActivity() {
 
     // 버튼 초기화
     private fun ActivityMainBinding.initButton() {
-        connectButton.setOnClickListener {
-            setValue()
-            commandToRedis(Extras.CONNECT)
+        idTextView.setOnClickListener {
+            if (AppData.ID.isBlank()) return@setOnClickListener
+            sendData(AppData.ID, "잘 되는지 확인")
         }
+        connectButton.setOnClickListener { setValueAndConnectRedis() }
         disconnectButton.setOnClickListener {
             idTextView.text = "연결이 없습니다."
             commandToRedis(Extras.DISCONNECT)
         }
     }
 
-    // 변수 초기화
-    private fun setValue() = with(binding) {
+    // 변수 검증
+    private fun setValueAndConnectRedis() = with(binding) {
         AppData.ID = idEditText.text.trim().toString()
         AppData.redisHost = ipEditText.text.trim().toString()
-        AppData.redisPort = portEditText.text.trim().toString().toIntOrNull() ?: 6379
+        AppData.redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {
+            AppData.showToast(this@MainActivity, "PORT 를 확인해주세요")
+            idTextView.text = "PORT 를 확인해주세요"
+            return@with
+        }
         // view 에 값 세팅
         idTextView.text = "${AppData.ID} connecting..."
+        commandToRedis(Extras.CONNECT)
     }
 
     // 리시버 초기화
@@ -99,7 +105,11 @@ class MainActivity : AppCompatActivity() {
         AppData.debug(TAG, "$command : $channel - $data")
         printLog("$command : $channel - $data")
         data?.apply {
+            AppData.showToast(this@MainActivity, this)
             when {
+                startsWith("check redis connection") ->
+                    binding.idTextView.text = "${AppData.ID} 정상 작동 중 !"
+
                 startsWith("successfully connected") -> {
                     binding.idTextView.text = "${AppData.ID} connected ! !"
                     checkConnection()
@@ -110,8 +120,17 @@ class MainActivity : AppCompatActivity() {
 
                 equals("fail to connect") ->
                     binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
+
+                equals("fail to reconnect") ->
+                    binding.idTextView.text = "네트워크 상태를 확인해주세요"
+
+                else -> setData(this)
             }
         }
+    }
+
+    private fun setData(data: String) {
+        // TODO: 레디스로부터 받은 메시지 처리 로직 작성 
     }
 
     // 택스트뷰 스크롤 맨 아래로 내리기
@@ -128,6 +147,11 @@ class MainActivity : AppCompatActivity() {
 
     // 레디스 연결
     private fun commandToRedis(command: String) = with(Intent(this, RedisService::class.java)) {
+        if (AppData.redisHost.isBlank() || AppData.redisPort == 0) {
+            AppData.showToast(this@MainActivity, "IP 와 PORT 를 확인해주세요")
+            binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
+            return@with
+        }
         putExtra(Extras.COMMAND, command)
         startForegroundService(this)
     }

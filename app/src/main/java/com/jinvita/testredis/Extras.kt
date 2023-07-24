@@ -1,7 +1,7 @@
 package com.jinvita.testredis
 
 object Extras {
-    const val CHECK_INTERVAL = 1 * 60 * 1000L
+    const val CHECK_INTERVAL = 20 * 60 * 1000L
     const val UNKNOWN = "unknown"
     const val COMMAND = "command"
     const val CHANNEL = "channel"

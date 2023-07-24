@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
             val testId2 = "test02"
             sendData(testId1, "잘 되는지 확인 from ${AppData.ID}")
             sendData(testId2, "잘 되는지 확인 from ${AppData.ID}")
-            printLog("$testId1, $testId2 가 잘 되는지 확인")
+            printLog("$testId1, $testId2 가 잘 되는지 확인 시도")
         }
         connectButton.setOnClickListener { setValueAndConnectRedis() }
         disconnectButton.setOnClickListener {

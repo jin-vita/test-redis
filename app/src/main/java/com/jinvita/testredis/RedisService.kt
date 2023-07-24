@@ -27,6 +27,10 @@ import kotlin.concurrent.thread
 import kotlin.concurrent.timer
 
 class RedisService : Service() {
+    companion object {
+        private const val TAG: String = "RedisService"
+    }
+
     private var publishConnection: RedisCommands<String, String>? = null
     private val connectionHandler by lazy { Handler(Looper.getMainLooper()) }
     private val handler by lazy { Handler(Looper.getMainLooper()) }
@@ -59,7 +63,7 @@ class RedisService : Service() {
         notificationManager.createNotificationChannel(notificationChannel)
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Redis")
-            .setContentText("RedisService started.").build()
+            .setContentText("$TAG started.").build()
         startForeground(1, notification)
     }
 
@@ -106,7 +110,7 @@ class RedisService : Service() {
                 return@thread
             }
             // 이 부분에서 size 는 언제나 0 이어야 한다.
-            AppData.error("RedisService", "clients.size: ${clients.size}")
+            AppData.error(TAG, "clients.size: ${clients.size}")
             val options = ClientResources.builder()
                 .reconnectDelay(Delay.constant(Duration.ofSeconds(10)))
                 .build()
@@ -187,12 +191,12 @@ class RedisService : Service() {
     }
 
     // activity 로 전달
-    private fun sendToActivity(channel: String, data: String) {
-        val broadcastIntent = Intent(AppData.ACTION_REDIS_DATA)
-        broadcastIntent.putExtra(Extras.COMMAND, "REDIS")
-        broadcastIntent.putExtra(Extras.CHANNEL, channel)
-        broadcastIntent.putExtra(Extras.DATA, data)
-        sendBroadcast(broadcastIntent)
+    private fun sendToActivity(channel: String, data: String) = with(Intent(AppData.ACTION_REDIS_DATA)) {
+        AppData.error(TAG, "REDIS : $channel - $data")
+        putExtra(Extras.COMMAND, "REDIS")
+        putExtra(Extras.CHANNEL, channel)
+        putExtra(Extras.DATA, data)
+        sendBroadcast(this)
     }
 
     // 데이터 보내기

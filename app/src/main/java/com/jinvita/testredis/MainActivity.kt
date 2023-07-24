@@ -50,9 +50,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun initView() = with(binding) {
         // view 에 값 세팅
+//        idEditText.setText("test01")
+//        ipEditText.setText("192.168.1.1")
+//        portEditText.setText("6379")
         idEditText.setText("test01")
-        ipEditText.setText("192.168.1.1")
-        portEditText.setText("6379")
+        ipEditText.setText("119.6.3.91")
+        portEditText.setText("40020")
 
         // 로그 뷰에 스크롤 생성
         logTextView.movementMethod = ScrollingMovementMethod()
@@ -63,8 +66,11 @@ class MainActivity : AppCompatActivity() {
     // 버튼 초기화
     private fun ActivityMainBinding.initButton() {
         idTextView.setOnClickListener {
-            if (AppData.ID.isBlank()) return@setOnClickListener
-            sendData(AppData.ID, "잘 되는지 확인")
+            val testId1 = "test01"
+            val testId2 = "test02"
+            sendData(testId1, "잘 되는지 확인 from ${AppData.ID}")
+            sendData(testId2, "잘 되는지 확인 from ${AppData.ID}")
+            printLog("$testId1, $testId2 가 잘 되는지 확인")
         }
         connectButton.setOnClickListener { setValueAndConnectRedis() }
         disconnectButton.setOnClickListener {
@@ -74,13 +80,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     // 변수 검증
-    private fun setValueAndConnectRedis() = with(binding) {
+    private fun ActivityMainBinding.setValueAndConnectRedis() {
         AppData.ID = idEditText.text.trim().toString()
         AppData.redisHost = ipEditText.text.trim().toString()
         AppData.redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {
             AppData.showToast(this@MainActivity, "PORT 를 확인해주세요")
             idTextView.text = "PORT 를 확인해주세요"
-            return@with
+            return
         }
         // view 에 값 세팅
         idTextView.text = "${AppData.ID} connecting..."

@@ -38,10 +38,7 @@ class RedisService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::timer.isInitialized) timer.cancel()
-        clients.forEach { it.first.shutdown() }
-        clients.clear()
-        isConnecting.set(false)
+        disconnectRedis()
     }
 
     override fun onCreate() {
@@ -122,6 +119,7 @@ class RedisService : Service() {
     // 연결 끊기
     private fun disconnectRedis() {
         thread {
+            if (::timer.isInitialized) timer.cancel()
             publishConnection = null
             clients.forEach { it.first.shutdown() }
             clients.clear()

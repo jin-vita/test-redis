@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initView() = with(binding) {
         // view 에 값 세팅
-        idEditText.setText("test01")
+        idEditText.setText("test02")
         ipEditText.setText("192.168.1.1")
         portEditText.setText("6379")
 
@@ -64,8 +64,6 @@ class MainActivity : AppCompatActivity() {
             arrayListOf(
                 "test01",
                 "test02",
-                "SMC-QQ-DOOR-001",
-                "B4F-R02"
             ).apply {
                 @SuppressLint("SimpleDateFormat")
                 val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())

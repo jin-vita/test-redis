@@ -40,6 +40,7 @@ class RedisService : Service() {
     private val clients by lazy { ConcurrentLinkedDeque<Pair<RedisClient, String>>() }
     private val isConnecting = AtomicBoolean(false)
 
+    private var redisAction = ""
     private var channel = ""
     private var host = ""
     private var port = 0
@@ -72,13 +73,14 @@ class RedisService : Service() {
     }
 
     private fun handleCommand(intent: Intent) {
-        host = intent.getStringExtra(Extras.REDIS_HOST).toString()
-        port = intent.getIntExtra(Extras.REDIS_PORT, 0)
-        channel = intent.getStringExtra(Extras.MY_CHANNEL).toString()
         intent.getStringExtra(Extras.COMMAND)?.apply {
             when (this) {
                 // 연결 혹은 끊기를 while 처럼 빠르게 반복하면 redisConnectionException 이 생겨서 0.5초 딜레이
                 Extras.CONNECT -> {
+                    redisAction = intent.getStringExtra(Extras.REDIS_ACTION).toString()
+                    host = intent.getStringExtra(Extras.REDIS_HOST).toString()
+                    port = intent.getIntExtra(Extras.REDIS_PORT, 0)
+                    channel = intent.getStringExtra(Extras.MY_CHANNEL).toString()
                     connectionHandler.removeMessages(0)
                     connectionHandler.postDelayed(::connectRedis, 500)
                 }
@@ -88,7 +90,6 @@ class RedisService : Service() {
                     connectionHandler.postDelayed(::disconnectRedis, 500)
                 }
 
-                "connection-check" -> checkConnection()
                 "send" -> {
                     intent.getStringExtra(Extras.CHANNEL)?.let {
                         val data = intent.getStringExtra(Extras.DATA) ?: "전달할 데이터 없음"
@@ -189,16 +190,14 @@ class RedisService : Service() {
                 connection.subscribe(channel)
             }
             handler.postDelayed({
-                sendData(
-                    channel,
-                    "successfully connected. $channel - ${host}:${port}"
-                )
+                sendData(channel, "successfully connected. $channel - ${host}:${port}")
+                checkConnection()
             }, 1000)
         }
     }
 
     // activity 로 전달
-    private fun sendToActivity(channel: String, data: String) = with(Intent(AppData.ACTION_REDIS_DATA)) {
+    private fun sendToActivity(channel: String, data: String) = with(Intent(redisAction)) {
         AppData.error(TAG, "REDIS : $channel - $data")
         putExtra(Extras.COMMAND, "REDIS")
         putExtra(Extras.CHANNEL, channel)

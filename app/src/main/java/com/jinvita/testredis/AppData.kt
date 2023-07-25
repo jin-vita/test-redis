@@ -24,6 +24,4 @@ object AppData {
         toast = Toast.makeText(context, msg, Toast.LENGTH_SHORT)
         toast.show()
     }
-
-    const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
 }

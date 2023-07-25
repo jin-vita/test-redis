@@ -18,6 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG: String = "MainActivity"
+        const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
     }
 
     private var channel = ""
@@ -55,8 +56,10 @@ class MainActivity : AppCompatActivity() {
     private fun initView() = with(binding) {
         // view 에 값 세팅
         idEditText.setText("test01")
-        ipEditText.setText("192.168.1.1")
-        portEditText.setText("6379")
+//        ipEditText.setText("192.168.1.1")
+//        portEditText.setText("6379")
+        ipEditText.setText("119.6.3.91")
+        portEditText.setText("40020")
 
         // 로그 뷰에 스크롤 생성
         logTextView.movementMethod = ScrollingMovementMethod()
@@ -70,6 +73,8 @@ class MainActivity : AppCompatActivity() {
             arrayListOf(
                 "test01",
                 "test02",
+                "SMC-QQ-DOOR-001",
+                "B4F-R02"
             ).apply {
                 @SuppressLint("SimpleDateFormat")
                 val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
@@ -104,7 +109,7 @@ class MainActivity : AppCompatActivity() {
     private fun initReceiver() {
         AppData.debug(TAG, "initReceiver called.")
         redisFilter = IntentFilter()
-        redisFilter.addAction(AppData.ACTION_REDIS_DATA)
+        redisFilter.addAction(ACTION_REDIS_DATA)
         redisReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) = setReceivedData(intent)
         }
@@ -123,9 +128,7 @@ class MainActivity : AppCompatActivity() {
             when {
                 startsWith("already connected") -> return
                 startsWith("check redis connection") -> return
-                startsWith("successfully connected") -> {
-                    checkConnection()
-                }
+                startsWith("successfully connected") -> return
 
                 equals("fail to connect") ->
                     binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
@@ -165,6 +168,7 @@ class MainActivity : AppCompatActivity() {
         }
         putExtra(Extras.COMMAND, command)
         if (command == Extras.CONNECT) {
+            putExtra(Extras.REDIS_ACTION, ACTION_REDIS_DATA)
             putExtra(Extras.REDIS_HOST, redisHost)
             putExtra(Extras.REDIS_PORT, redisPort)
             putExtra(Extras.MY_CHANNEL, channel)
@@ -177,12 +181,6 @@ class MainActivity : AppCompatActivity() {
         putExtra(Extras.COMMAND, "send")
         putExtra(Extras.CHANNEL, channel)
         putExtra(Extras.DATA, data)
-        startForegroundService(this)
-    }
-
-    // 매 CHECK_INTERVAL 마다 스스로에게 메시지 보내서 연결 확인 시작
-    private fun checkConnection() = with(Intent(this, RedisService::class.java)) {
-        putExtra(Extras.COMMAND, "connection-check")
         startForegroundService(this)
     }
 

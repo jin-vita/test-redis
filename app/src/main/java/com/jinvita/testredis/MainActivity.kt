@@ -28,16 +28,13 @@ class MainActivity : AppCompatActivity() {
         AppData.debug(TAG, "onStart called.")
         super.onStart()
         registerReceiver(redisReceiver, redisFilter)
+        if (AppData.redisHost.isNotBlank() && AppData.redisPort != 0) commandToRedis(Extras.CONNECT)
     }
 
     override fun onStop() {
         AppData.debug(TAG, "onStop called.")
         super.onStop()
         unregisterReceiver(redisReceiver)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
         commandToRedis(Extras.DISCONNECT)
     }
 
@@ -63,11 +60,17 @@ class MainActivity : AppCompatActivity() {
     // 버튼 초기화
     private fun ActivityMainBinding.initButton() {
         idTextView.setOnClickListener {
-            val testId1 = "test01"
-            val testId2 = "test02"
-            sendData(testId1, "잘 되는지 확인 from ${AppData.ID}")
-            sendData(testId2, "잘 되는지 확인 from ${AppData.ID}")
-            printLog("$testId1, $testId2 가 잘 되는지 확인 시도")
+            arrayListOf(
+                "test01",
+                "test02",
+                "SMC-QQ-DOOR-001",
+                "B4F-R02"
+            ).apply {
+                @SuppressLint("SimpleDateFormat")
+                val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
+                forEach { sendData(it, "checked! from ${AppData.ID} $now") }
+                printLog("CHECK : $this")
+            }
         }
         connectButton.setOnClickListener { setValueAndConnectRedis() }
         disconnectButton.setOnClickListener {

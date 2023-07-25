@@ -23,12 +23,13 @@ class MainActivity : AppCompatActivity() {
     private val logList by lazy { mutableListOf<String>() }
     private lateinit var redisReceiver: BroadcastReceiver
     private lateinit var redisFilter: IntentFilter
+    private var isNetworkConnected = false
 
     override fun onStart() {
         AppData.debug(TAG, "onStart called.")
         super.onStart()
         registerReceiver(redisReceiver, redisFilter)
-        if (AppData.redisHost.isNotBlank() && AppData.redisPort != 0) commandToRedis(Extras.CONNECT)
+        if (isNetworkConnected) commandToRedis(Extras.CONNECT)
     }
 
     override fun onStop() {
@@ -84,8 +85,10 @@ class MainActivity : AppCompatActivity() {
         AppData.ID = idEditText.text.trim().toString()
         AppData.redisHost = ipEditText.text.trim().toString()
         AppData.redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {
-            AppData.showToast(this@MainActivity, "PORT 를 확인해주세요")
-            idTextView.text = "PORT 를 확인해주세요"
+            with("PORT 를 확인해주세요") {
+                AppData.showToast(this@MainActivity, this)
+                idTextView.text = this
+            }
             return
         }
         // view 에 값 세팅
@@ -116,7 +119,10 @@ class MainActivity : AppCompatActivity() {
             when {
                 startsWith("already connected") -> return
                 startsWith("check redis connection") -> return
-                startsWith("successfully connected") -> checkConnection()
+                startsWith("successfully connected") -> {
+                    isNetworkConnected = true
+                    checkConnection()
+                }
 
                 equals("fail to connect") ->
                     binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
@@ -148,8 +154,10 @@ class MainActivity : AppCompatActivity() {
     // 레디스 연결
     private fun commandToRedis(command: String) = with(Intent(this, RedisService::class.java)) {
         if (AppData.redisHost.isBlank() || AppData.redisPort == 0) {
-            AppData.showToast(this@MainActivity, "IP 와 PORT 를 확인해주세요")
-            binding.idTextView.text = "IP 와 PORT 를 확인해주세요"
+            if (command == Extras.CONNECT) with("IP 와 PORT 를 확인해주세요") {
+                AppData.showToast(this@MainActivity, this)
+                binding.idTextView.text = this
+            }
             return@with
         }
         putExtra(Extras.COMMAND, command)

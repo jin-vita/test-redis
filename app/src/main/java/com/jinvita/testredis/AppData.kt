@@ -25,8 +25,5 @@ object AppData {
         toast.show()
     }
 
-    var ID = ""
-    var redisPort = 0
-    var redisHost = ""
     const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
 }

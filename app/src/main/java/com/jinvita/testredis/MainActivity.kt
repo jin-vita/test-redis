@@ -20,22 +20,28 @@ class MainActivity : AppCompatActivity() {
         private const val TAG: String = "MainActivity"
     }
 
+    private var channel = ""
+    private var redisHost = ""
+    private var redisPort = 0
+
     private val logList by lazy { mutableListOf<String>() }
     private lateinit var redisReceiver: BroadcastReceiver
     private lateinit var redisFilter: IntentFilter
-    private var isNetworkConnected = false
 
     override fun onStart() {
         AppData.debug(TAG, "onStart called.")
         super.onStart()
         registerReceiver(redisReceiver, redisFilter)
-        if (isNetworkConnected) commandToRedis(Extras.CONNECT)
     }
 
     override fun onStop() {
         AppData.debug(TAG, "onStop called.")
         super.onStop()
         unregisterReceiver(redisReceiver)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
         commandToRedis(Extras.DISCONNECT)
     }
 
@@ -48,7 +54,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initView() = with(binding) {
         // view 에 값 세팅
-        idEditText.setText("test02")
+        idEditText.setText("test01")
         ipEditText.setText("192.168.1.1")
         portEditText.setText("6379")
 
@@ -67,7 +73,7 @@ class MainActivity : AppCompatActivity() {
             ).apply {
                 @SuppressLint("SimpleDateFormat")
                 val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
-                forEach { sendData(it, "checked! from ${AppData.ID} $now") }
+                forEach { sendData(it, "checked! from $channel $now") }
                 printLog("CHECK : $this")
             }
         }
@@ -80,9 +86,9 @@ class MainActivity : AppCompatActivity() {
 
     // 변수 검증
     private fun ActivityMainBinding.setValueAndConnectRedis() {
-        AppData.ID = idEditText.text.trim().toString()
-        AppData.redisHost = ipEditText.text.trim().toString()
-        AppData.redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {
+        channel = idEditText.text.trim().toString()
+        redisHost = ipEditText.text.trim().toString()
+        redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {
             with("PORT 를 확인해주세요") {
                 AppData.showToast(this@MainActivity, this)
                 idTextView.text = this
@@ -90,7 +96,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         // view 에 값 세팅
-        idTextView.text = "${AppData.ID} connecting..."
+        idTextView.text = "$channel connecting..."
         commandToRedis(Extras.CONNECT)
     }
 
@@ -111,14 +117,13 @@ class MainActivity : AppCompatActivity() {
         val data = intent.getStringExtra(Extras.DATA)
         AppData.debug(TAG, "$command : $channel - $data")
         printLog("$command : $channel - $data")
-        if (channel == AppData.ID) binding.idTextView.text = "${AppData.ID} connected ! !"
+        if (channel == this.channel) binding.idTextView.text = "${this.channel} connected ! !"
         data?.apply {
             AppData.showToast(this@MainActivity, this)
             when {
                 startsWith("already connected") -> return
                 startsWith("check redis connection") -> return
                 startsWith("successfully connected") -> {
-                    isNetworkConnected = true
                     checkConnection()
                 }
 
@@ -151,7 +156,7 @@ class MainActivity : AppCompatActivity() {
 
     // 레디스 연결
     private fun commandToRedis(command: String) = with(Intent(this, RedisService::class.java)) {
-        if (AppData.redisHost.isBlank() || AppData.redisPort == 0) {
+        if (redisHost.isBlank() || redisPort == 0) {
             if (command == Extras.CONNECT) with("IP 와 PORT 를 확인해주세요") {
                 AppData.showToast(this@MainActivity, this)
                 binding.idTextView.text = this
@@ -159,6 +164,11 @@ class MainActivity : AppCompatActivity() {
             return@with
         }
         putExtra(Extras.COMMAND, command)
+        if (command == Extras.CONNECT) {
+            putExtra(Extras.REDIS_HOST, redisHost)
+            putExtra(Extras.REDIS_PORT, redisPort)
+            putExtra(Extras.MY_CHANNEL, channel)
+        }
         startForegroundService(this)
     }
 

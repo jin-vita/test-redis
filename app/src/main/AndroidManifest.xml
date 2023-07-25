@@ -29,7 +29,8 @@
         <service
                 android:name=".RedisService"
                 android:enabled="true"
-                android:exported="false"/>
+                android:exported="false"
+                android:process=":redis"/>
     </application>
 
 </manifest>

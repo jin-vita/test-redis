@@ -40,6 +40,10 @@ class RedisService : Service() {
     private val clients by lazy { ConcurrentLinkedDeque<Pair<RedisClient, String>>() }
     private val isConnecting = AtomicBoolean(false)
 
+    private var channel = ""
+    private var host = ""
+    private var port = 0
+
     override fun onDestroy() {
         super.onDestroy()
         disconnectRedis()
@@ -68,6 +72,9 @@ class RedisService : Service() {
     }
 
     private fun handleCommand(intent: Intent) {
+        host = intent.getStringExtra(Extras.REDIS_HOST).toString()
+        port = intent.getIntExtra(Extras.REDIS_PORT, 0)
+        channel = intent.getStringExtra(Extras.MY_CHANNEL).toString()
         intent.getStringExtra(Extras.COMMAND)?.apply {
             when (this) {
                 // 연결 혹은 끊기를 while 처럼 빠르게 반복하면 redisConnectionException 이 생겨서 0.5초 딜레이
@@ -98,7 +105,7 @@ class RedisService : Service() {
             // 다른 channel 의 기존 연결이 있다면 모두 끊고 1초 뒤 다시 연결 시도
             // clients 에 값이 있다면 언제나 단 하나일 수 밖에 없다. (예상)
             clients.forEach {
-                if (it.second != AppData.ID) {
+                if (it.second != channel) {
                     disconnectRedis()
                     handler.postDelayed(::connectRedis, 1000)
                     return@thread
@@ -106,7 +113,7 @@ class RedisService : Service() {
             }
             // 이미 연결되어있다면 리턴, 없다면 true 로 변환하고 넘어간다.
             if (isConnecting.getAndSet(true)) {
-                sendData(AppData.ID, "already connected. ${AppData.ID} - ${AppData.redisHost}:${AppData.redisPort}")
+                sendData(channel, "already connected. $channel - $host:$port")
                 return@thread
             }
             // 이 부분에서 size 는 언제나 0 이어야 한다.
@@ -114,8 +121,8 @@ class RedisService : Service() {
             val options = ClientResources.builder()
                 .reconnectDelay(Delay.constant(Duration.ofSeconds(10)))
                 .build()
-            RedisURI.create(AppData.redisHost, AppData.redisPort)
-                .let { clients.add(RedisClient.create(options, it) to AppData.ID) }
+            RedisURI.create(host, port)
+                .let { clients.add(RedisClient.create(options, it) to channel) }
             subscribeChannel()
         }
     }
@@ -141,7 +148,7 @@ class RedisService : Service() {
                         if (publishConnection == null) publishConnection = it.first.connect().sync()
                         @SuppressLint("SimpleDateFormat")
                         val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
-                        publishConnection?.publish(AppData.ID, "check redis connection $now")
+                        publishConnection?.publish(channel, "check redis connection $now")
                     } catch (e: RedisConnectionException) {
                         e.printStackTrace()
                     } catch (e: RedisCommandTimeoutException) {
@@ -179,12 +186,12 @@ class RedisService : Service() {
                     override fun message(channel: String, data: String) =
                         sendToActivity(channel, data)
                 })
-                connection.subscribe(AppData.ID)
+                connection.subscribe(channel)
             }
             handler.postDelayed({
                 sendData(
-                    AppData.ID,
-                    "successfully connected. ${AppData.ID} - ${AppData.redisHost}:${AppData.redisPort}"
+                    channel,
+                    "successfully connected. $channel - ${host}:${port}"
                 )
             }, 1000)
         }

@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG: String = "MainActivity"
-        const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
+        private const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
     }
 
     private var channel = ""

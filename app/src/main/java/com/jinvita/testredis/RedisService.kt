@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -16,6 +17,7 @@ import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.sync.RedisCommands
 import io.lettuce.core.pubsub.RedisPubSubListener
+import io.lettuce.core.pubsub.api.sync.RedisPubSubCommands
 import io.lettuce.core.resource.ClientResources
 import io.lettuce.core.resource.Delay
 import java.text.SimpleDateFormat
@@ -31,13 +33,20 @@ class RedisService : Service() {
         private const val TAG: String = "RedisService"
     }
 
+    data class RedisInfo(
+        val client: RedisClient,
+        val channel: String,
+        var connection: RedisPubSubCommands<String, String>? = null,
+        var isConnected: Boolean = false
+    )
+
     private var publishConnection: RedisCommands<String, String>? = null
     private val connectionHandler by lazy { Handler(Looper.getMainLooper()) }
     private val handler by lazy { Handler(Looper.getMainLooper()) }
     private lateinit var timer: Timer
 
     // thread-safe (여러 스레드에서 동시에 사용 가능한 변수들)
-    private val clients by lazy { ConcurrentLinkedDeque<Pair<RedisClient, String>>() }
+    private val clients by lazy { ConcurrentLinkedDeque<RedisInfo>() }
     private val isConnecting = AtomicBoolean(false)
 
     private var redisAction = ""
@@ -106,7 +115,7 @@ class RedisService : Service() {
             // 다른 channel 의 기존 연결이 있다면 모두 끊고 1초 뒤 다시 연결 시도
             // clients 에 값이 있다면 언제나 단 하나일 수 밖에 없다. (예상)
             clients.forEach {
-                if (it.second != channel) {
+                if (it.channel != channel) {
                     disconnectRedis()
                     handler.postDelayed(::connectRedis, 1000)
                     return@thread
@@ -118,12 +127,13 @@ class RedisService : Service() {
                 return@thread
             }
             // 이 부분에서 size 는 언제나 0 이어야 한다.
+            sendData(Extras.UNKNOWN, "clients.size: ${clients.size}")
             AppData.error(TAG, "clients.size: ${clients.size}")
             val options = ClientResources.builder()
                 .reconnectDelay(Delay.constant(Duration.ofSeconds(10)))
                 .build()
             RedisURI.create(host, port)
-                .let { clients.add(RedisClient.create(options, it) to channel) }
+                .let { clients.add(RedisInfo(RedisClient.create(options, it), channel)) }
             subscribeChannel()
         }
     }
@@ -133,7 +143,10 @@ class RedisService : Service() {
         thread {
             if (::timer.isInitialized) timer.cancel()
             publishConnection = null
-            clients.forEach { it.first.shutdown() }
+            clients.forEach {
+                if (it.isConnected) it.connection?.unsubscribe(it.channel)
+                it.client.shutdown()
+            }
             clients.clear()
             isConnecting.set(false)
         }
@@ -146,7 +159,7 @@ class RedisService : Service() {
             timer = timer(period = Extras.CHECK_INTERVAL) {
                 clients.forEach {
                     try {
-                        if (publishConnection == null) publishConnection = it.first.connect().sync()
+                        if (publishConnection == null) publishConnection = it.client.connect().sync()
                         @SuppressLint("SimpleDateFormat")
                         val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
                         publishConnection?.publish(channel, "check redis connection $now")
@@ -166,34 +179,59 @@ class RedisService : Service() {
     private fun subscribeChannel() {
         thread {
             clients.forEach {
-                val connection = try {
-                    it.first.connectPubSub().sync()
+                try {
+                    it.client.connectPubSub().sync()
                 } catch (e: RedisConnectionException) {
                     // 네트워크에 해당 레디스서버 IP 와 PORT 가 없어서 연결실패 상황
                     if (::timer.isInitialized) timer.cancel()
-                    clients.forEach { client -> client.first.shutdown() }
+                    clients.forEach { client ->
+                        if (client.isConnected) client.connection?.unsubscribe(client.channel)
+                        client.client.shutdown()
+                    }
                     clients.clear()
                     isConnecting.set(false)
                     sendToActivity(Extras.UNKNOWN, "fail to connect")
                     return@thread
+                }.apply {
+                    it.connection = this
+                    statefulConnection.addListener(object :
+                        RedisPubSubListener<String, String> {
+                        override fun message(p0: String?, p1: String?, p2: String?) {}
+                        override fun psubscribed(p0: String?, p1: Long) {}
+                        override fun punsubscribed(p0: String?, p1: Long) {}
+                        override fun message(channel: String, data: String) = setMessage(channel, data)
+                        override fun subscribed(channel: String, count: Long) {
+                            it.isConnected = true
+                            sendToActivity(channel, "$channel subscribed")
+                        }
+
+                        override fun unsubscribed(channel: String, count: Long) {
+                            it.isConnected = false
+                            sendToActivity(channel, "$channel unsubscribed")
+                        }
+
+                    })
+                    subscribe(channel)
                 }
-                connection.statefulConnection.addListener(object :
-                    RedisPubSubListener<String, String> {
-                    override fun message(p0: String?, p1: String?, p2: String?) {}
-                    override fun subscribed(channel: String?, count: Long) {}
-                    override fun psubscribed(p0: String?, p1: Long) {}
-                    override fun unsubscribed(channel: String?, count: Long) {}
-                    override fun punsubscribed(p0: String?, p1: Long) {}
-                    override fun message(channel: String, data: String) =
-                        sendToActivity(channel, data)
-                })
-                connection.subscribe(channel)
             }
             handler.postDelayed({
-                sendData(channel, "successfully connected. $channel - ${host}:${port}")
+                sendData(channel, "successfully connected. $channel - $host:$port")
                 checkConnection()
             }, 1000)
         }
+    }
+
+    private fun setMessage(channel: String, data: String) {
+        if (data.contains("ShowMain")) setBackgroundCommand(channel, data)
+        sendToActivity(channel, data)
+    }
+
+    // background 에서 작업
+    private fun setBackgroundCommand(channel: String, data: String) = with(Intent()) {
+        AppData.debug(TAG, "setBackgroundCommand called. REDIS : $channel - $data")
+
+        component = ComponentName("com.jinvita.testredis", "com.jinvita.testredis.MainActivity")
+        startActivity(this)
     }
 
     // activity 로 전달
@@ -210,7 +248,7 @@ class RedisService : Service() {
         thread {
             clients.forEach {
                 try {
-                    if (publishConnection == null) publishConnection = it.first.connect().sync()
+                    if (publishConnection == null) publishConnection = it.client.connect().sync()
                     publishConnection?.publish(channel, data)
                 } catch (e: RedisConnectionException) {
                     e.printStackTrace()

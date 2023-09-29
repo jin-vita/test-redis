@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.text.method.ScrollingMovementMethod
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -51,6 +53,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         initView()
         initReceiver()
+        // 백그라운드에서 액티비티를 실행하기 위한 다른 앱 위에 표시 권한 체크
+        if (!Settings.canDrawOverlays(this))
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${packageName}")))
     }
 
     private fun initView() = with(binding) {
@@ -87,6 +92,12 @@ class MainActivity : AppCompatActivity() {
 
     // 변수 검증
     private fun ActivityMainBinding.setValueAndConnectRedis() {
+        if (!Settings.canDrawOverlays(this@MainActivity)) {
+            AppData.showToast(this@MainActivity, "다른 앱 위에 표시 권한을 허용하세요")
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${packageName}"))
+            startActivity(intent)
+            return
+        }
         channel = idEditText.text.trim().toString()
         redisHost = ipEditText.text.trim().toString()
         redisPort = portEditText.text.trim().toString().toIntOrNull() ?: kotlin.run {

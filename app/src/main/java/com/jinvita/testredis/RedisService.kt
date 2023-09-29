@@ -112,8 +112,7 @@ class RedisService : Service() {
     // 레디스 연결
     private fun connectRedis() {
         thread {
-            // 다른 channel 의 기존 연결이 있다면 모두 끊고 1초 뒤 다시 연결 시도
-            // clients 에 값이 있다면 언제나 단 하나일 수 밖에 없다. (예상)
+            // 다른 channel 의 기존 연결이 있다면 끊고 1초 뒤 다시 연결 시도 (clients 에 값이 있다면 언제나 단 하나)
             clients.forEach {
                 if (it.channel != channelId) {
                     disconnectRedis()
@@ -227,7 +226,7 @@ class RedisService : Service() {
     // background 에서 작업
     private fun setBackgroundCommand(channel: String, data: String) = with(Intent()) {
         AppData.debug(TAG, "setBackgroundCommand called. REDIS : $channel - $data")
-
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         component = ComponentName("com.jinvita.testredis", "com.jinvita.testredis.MainActivity")
         startActivity(this)
     }

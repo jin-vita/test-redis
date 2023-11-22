@@ -43,7 +43,7 @@ class RedisService : Service() {
     private var publishConnection: RedisCommands<String, String>? = null
     private val connectionHandler by lazy { Handler(Looper.getMainLooper()) }
     private val handler by lazy { Handler(Looper.getMainLooper()) }
-    private lateinit var timer: Timer
+    private var timer: Timer? = null
 
     // thread-safe (여러 스레드에서 동시에 사용 가능한 변수들)
     private val clients by lazy { ConcurrentLinkedDeque<RedisInfo>() }
@@ -115,8 +115,7 @@ class RedisService : Service() {
             // 다른 channel 의 기존 연결이 있다면 끊고 1초 뒤 다시 연결 시도 (clients 에 값이 있다면 언제나 단 하나)
             clients.forEach {
                 if (it.channel != channelId) {
-                    disconnectRedis()
-                    handler.postDelayed(::connectRedis, 1000)
+                    disconnectRedis(true)
                     return@thread
                 }
             }
@@ -138,23 +137,21 @@ class RedisService : Service() {
     }
 
     // 연결 끊기
-    private fun disconnectRedis() {
+    private fun disconnectRedis(isReconnect: Boolean = false) {
         thread {
-            if (::timer.isInitialized) timer.cancel()
+            timer?.cancel()
             publishConnection = null
-            clients.forEach {
-                if (it.isConnected) it.connection?.unsubscribe(it.channel)
-                it.client.shutdown()
-            }
+            clients.forEach { it.client.shutdown() }
             clients.clear()
             isConnecting.set(false)
+            if (isReconnect) connectRedis()
         }
     }
 
     // CHECK_INTERVAL 마다 나 자신에게 메시지를 보낸다.
     private fun checkConnection() {
         thread {
-            if (::timer.isInitialized) timer.cancel()
+            timer?.cancel()
             timer = timer(period = Extras.CHECK_INTERVAL) {
                 clients.forEach {
                     try {
@@ -182,7 +179,7 @@ class RedisService : Service() {
                     it.client.connectPubSub().sync()
                 } catch (e: RedisConnectionException) {
                     // 네트워크에 해당 레디스서버 IP 와 PORT 가 없어서 연결실패 상황
-                    if (::timer.isInitialized) timer.cancel()
+                    timer?.cancel()
                     clients.forEach { client ->
                         if (client.isConnected) client.connection?.unsubscribe(client.channel)
                         client.client.shutdown()
@@ -203,7 +200,7 @@ class RedisService : Service() {
                             it.isConnected = true
                             sendToActivity(channel, "$channel subscribed")
                             sendData(channel, "successfully connected. $channel - $host:$port")
-                            handler.postDelayed({ checkConnection() }, 1000)
+                            handler.postDelayed(::checkConnection, 1000)
                         }
 
                         override fun unsubscribed(channel: String, count: Long) {
@@ -227,7 +224,7 @@ class RedisService : Service() {
     private fun setBackgroundCommand(channel: String, data: String) = with(Intent()) {
         AppData.debug(TAG, "setBackgroundCommand called. REDIS : $channel - $data")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        component = ComponentName("com.jinvita.testredis", "com.jinvita.testredis.MainActivity")
+        component = ComponentName(packageName, "$packageName.MainActivity")
         startActivity(this)
     }
 

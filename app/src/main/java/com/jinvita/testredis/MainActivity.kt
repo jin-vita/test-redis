@@ -20,16 +20,15 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG: String = "MainActivity"
-        private const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
     }
-
-    private var channel = ""
-    private var redisHost = ""
-    private var redisPort = 0
 
     private val logList by lazy { mutableListOf<String>() }
     private lateinit var redisReceiver: BroadcastReceiver
     private lateinit var redisFilter: IntentFilter
+    private var channel = ""
+    private var redisHost = ""
+    private var redisPort = 0
+
 
     override fun onStart() {
         AppData.debug(TAG, "onStart called.")
@@ -74,6 +73,7 @@ class MainActivity : AppCompatActivity() {
 
     // 버튼 초기화
     private fun ActivityMainBinding.initButton() {
+        // id 를 누르면 해당 채널로 메시지 보내기
         idTextView.setOnClickListener {
             arrayListOf(
                 "test01",
@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
     private fun initReceiver() {
         AppData.debug(TAG, "initReceiver called.")
         redisFilter = IntentFilter()
-        redisFilter.addAction(ACTION_REDIS_DATA)
+        redisFilter.addAction(AppData.ACTION_REDIS_DATA)
         redisReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) = setReceivedData(intent)
         }
@@ -177,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         }
         putExtra(Extras.COMMAND, command)
         if (command == Extras.CONNECT) {
-            putExtra(Extras.REDIS_ACTION, ACTION_REDIS_DATA)
+            putExtra(Extras.REDIS_ACTION, AppData.ACTION_REDIS_DATA)
             putExtra(Extras.REDIS_HOST, redisHost)
             putExtra(Extras.REDIS_PORT, redisPort)
             putExtra(Extras.MY_CHANNEL, channel)

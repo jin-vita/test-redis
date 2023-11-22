@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 
 object AppData {
+    const val ACTION_REDIS_DATA = "com.jinvita.redis.data"
     private var isDebug = true
     fun debug(tag: String, msg: String) {
         if (isDebug) Log.d(tag, msg)

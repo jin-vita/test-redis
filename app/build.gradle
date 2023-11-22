@@ -50,5 +50,5 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
     // 레디스 처리를 위한 Lettuce
-    implementation 'io.lettuce:lettuce-core:6.1.8.RELEASE'
+    implementation 'io.lettuce:lettuce-core:6.2.6.RELEASE'
 }

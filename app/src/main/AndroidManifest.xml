@@ -32,6 +32,10 @@
                 android:enabled="true"
                 android:exported="true"
                 android:process=":redis"/>
+        <!--        <service-->
+        <!--                android:name=".RedisService"-->
+        <!--                android:enabled="true"-->
+        <!--                android:exported="false"/>-->
     </application>
 
 </manifest>

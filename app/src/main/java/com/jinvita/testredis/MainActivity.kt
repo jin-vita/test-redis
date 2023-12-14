@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-//        commandToRedis(Extras.DISCONNECT)
+        commandToRedis(Extras.DISCONNECT)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,11 +59,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun initView() = with(binding) {
         // view 에 값 세팅
-        idEditText.setText("test02")
+        idEditText.setText("TEST01")
 //        ipEditText.setText("192.168.1.1")
 //        portEditText.setText("6379")
-        ipEditText.setText("119.6.3.91")
-        portEditText.setText("40020")
+        ipEditText.setText("119.70.192.165")
+        portEditText.setText("6379")
+//        ipEditText.setText("119.6.3.91")
+//        portEditText.setText("40020")
 
         // 로그 뷰에 스크롤 생성
         logTextView.movementMethod = ScrollingMovementMethod()
@@ -76,8 +78,13 @@ class MainActivity : AppCompatActivity() {
         // id 를 누르면 해당 채널로 메시지 보내기
         idTextView.setOnClickListener {
             arrayListOf(
-                "test01",
-                "test02",
+                "TEST01",
+                "TEST02",
+                "TEST03",
+                "TEST04",
+                "TEST05",
+                "TEST06",
+                "TEST07",
             ).apply {
                 @SuppressLint("SimpleDateFormat")
                 val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date())
